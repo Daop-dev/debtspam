@@ -1,0 +1,4 @@
+Flask>=3.0
+Flask-WTF>=1.2
+# Only needed when SMS_PROVIDER=twilio
+twilio>=9.0

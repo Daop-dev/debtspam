@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Malaysia OTP Verification</title>
+<style>
+body {
+    background: #10131b;
+    color: white;
+    font-family: Arial, sans-serif;
+    padding: 25px;
+}
+.container {
+    max-width: 420px;
+    margin: 50px auto;
+    background: #202735;
+    padding: 25px;
+    border-radius: 16px;
+}
+input:not([type=checkbox]) {
+    width: 100%;
+    padding: 14px;
+    margin: 10px 0;
+    box-sizing: border-box;
+    border-radius: 8px;
+    border: 1px solid #555;
+}
+button {
+    width: 100%;
+    padding: 14px;
+    background: #7895ff;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    margin-top: 12px;
+}
+.message { padding: 12px; background: #34445a; border-radius: 8px; }
+label { display: block; margin-top: 15px; }
+.consent { font-size: 13px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h2>Malaysia OTP Verification</h2>
+<p>Secure phone number verification</p>
+
+{% for category, message in get_flashed_messages(with_categories=true) %}
+<div class="message">{{ message }}</div>
+{% endfor %}
+
+{% if session.get("verified") %}
+
+<h3>✓ Phone verified successfully!</h3>
+
+<form action="/reset" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button>Start Again</button>
+</form>
+
+{% else %}
+
+<form action="/send" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<label>Malaysian phone number</label>
+<input type="tel" name="phone"
+placeholder="0123456789 or +60123456789"
+value="{{ phone }}" required>
+
+<label class="consent">
+<input type="checkbox" name="consent" value="yes" required>
+I own or am authorized to use this number and request this OTP.
+</label>
+
+<button type="submit">Send OTP SMS</button>
+</form>
+
+{% if pending %}
+<hr>
+
+<form action="/verify" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<label>Enter OTP code</label>
+<input type="text" name="code"
+inputmode="numeric"
+maxlength="10"
+placeholder="Enter SMS code" required>
+
+<button type="submit">Verify OTP</button>
+</form>
+{% endif %}
+
+{% endif %}
+
+</div>
+</body>
+</html>
