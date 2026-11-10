@@ -1,4 +1,6 @@
-"""Malaysian phone number OTP verification (Flask).
+"""DebtSMS: phone OTP verification plus a staff debt-reminder tool (Flask).
+
+The reminder tool lives in reminders.py and is served under /admin.
 
 One OTP flow per browser session: the user enters a Malaysian mobile number,
 confirms consent, receives a one-time code by SMS and enters it to verify.
@@ -18,19 +20,15 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import logging
 import os
 import re
 import secrets
-import threading
 import time
-from collections import defaultdict, deque
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_wtf.csrf import CSRFProtect
 
-log = logging.getLogger("otp")
-logging.basicConfig(level=logging.INFO)
+from core import APP_NAME, client_ip, log, mask_phone, normalize_my_phone, rates, send_sms
 
 # --- Configuration -----------------------------------------------------------
 
@@ -40,8 +38,6 @@ OTP_MAX_ATTEMPTS = int(os.environ.get("OTP_MAX_ATTEMPTS", 5))
 RESEND_COOLDOWN_SECONDS = int(os.environ.get("RESEND_COOLDOWN_SECONDS", 60))
 MAX_SENDS_PER_PHONE_PER_HOUR = int(os.environ.get("MAX_SENDS_PER_PHONE_PER_HOUR", 3))
 MAX_SENDS_PER_IP_PER_HOUR = int(os.environ.get("MAX_SENDS_PER_IP_PER_HOUR", 5))
-SMS_PROVIDER = os.environ.get("SMS_PROVIDER", "console").lower()
-APP_NAME = os.environ.get("APP_NAME", "DebtSMS")
 
 app = Flask(__name__)
 app.config.update(
@@ -52,69 +48,11 @@ app.config.update(
 )
 csrf = CSRFProtect(app)
 
-# --- Phone numbers -----------------------------------------------------------
+import reminders  # noqa: E402  (staff debt-reminder tool, under /admin)
 
-# Malaysian mobile numbers: 011-xxxx xxxx (8 digits after 11), or
-# 010/012-019-xxx xxxx (7 digits after the prefix). Stored as E.164.
-_MY_MOBILE = re.compile(r"^\+60(11\d{8}|1[02-9]\d{7})$")
-
-
-def normalize_my_phone(raw: str) -> str | None:
-    """Return the number in E.164 (+601...) form, or None if not a MY mobile."""
-    digits = re.sub(r"[\s\-().]", "", raw or "")
-    if digits.startswith("+60"):
-        e164 = digits
-    elif digits.startswith("60"):
-        e164 = "+" + digits
-    elif digits.startswith("0"):
-        e164 = "+6" + digits
-    else:
-        return None
-    return e164 if _MY_MOBILE.match(e164) else None
-
-
-def mask_phone(e164: str) -> str:
-    return e164[:5] + "*" * (len(e164) - 8) + e164[-3:]
-
-
-# --- Rate limiting -----------------------------------------------------------
-
-
-class RateStore:
-    """Thread-safe sliding-window counters keyed by arbitrary strings."""
-
-    def __init__(self) -> None:
-        self._events: dict[str, deque[float]] = defaultdict(deque)
-        self._lock = threading.Lock()
-
-    def _prune(self, key: str, window: float, now: float) -> deque[float]:
-        q = self._events[key]
-        while q and now - q[0] > window:
-            q.popleft()
-        return q
-
-    def check(self, key: str, limit: int, window: float) -> tuple[bool, int]:
-        """Return (allowed, seconds_until_allowed) without recording."""
-        now = time.time()
-        with self._lock:
-            q = self._prune(key, window, now)
-            if len(q) < limit:
-                return True, 0
-            return False, int(window - (now - q[0])) + 1
-
-    def hit(self, key: str) -> None:
-        with self._lock:
-            self._events[key].append(time.time())
-
-
-rates = RateStore()
-
-
-def client_ip() -> str:
-    # Only trust X-Forwarded-For if you deploy behind a proxy you control
-    # (then wrap the app with werkzeug.middleware.proxy_fix.ProxyFix instead).
-    return request.remote_addr or "unknown"
-
+app.register_blueprint(reminders.bp)
+csrf.exempt(reminders.inbound_sms)
+reminders.init_db()
 
 # --- OTP codes ---------------------------------------------------------------
 
@@ -126,23 +64,6 @@ def generate_code() -> str:
 def hash_code(code: str, salt: str) -> str:
     key = app.config["SECRET_KEY"].encode()
     return hmac.new(key, f"{salt}:{code}".encode(), hashlib.sha256).hexdigest()
-
-
-# --- SMS providers -----------------------------------------------------------
-
-
-def send_sms(to_e164: str, body: str) -> None:
-    if SMS_PROVIDER == "console":
-        # Development only: prints the message instead of sending it.
-        log.warning("[console SMS] to=%s body=%r", to_e164, body)
-        return
-    if SMS_PROVIDER == "twilio":
-        from twilio.rest import Client  # imported lazily; optional dependency
-
-        client = Client(os.environ["TWILIO_ACCOUNT_SID"], os.environ["TWILIO_AUTH_TOKEN"])
-        client.messages.create(to=to_e164, from_=os.environ["TWILIO_FROM"], body=body)
-        return
-    raise RuntimeError(f"Unknown SMS_PROVIDER: {SMS_PROVIDER!r}")
 
 
 # --- Routes ------------------------------------------------------------------

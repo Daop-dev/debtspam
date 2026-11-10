@@ -1,0 +1,21 @@
+{% extends "admin_base.html" %}
+{% block title %}Message log{% endblock %}
+{% block body %}
+<div class="top"><h1>Message log</h1><a href="{{ url_for('admin.dashboard') }}">← Customers</a></div>
+<div class="card scroll">
+{% if not rows %}<p class="muted">No messages yet.</p>{% else %}
+<table>
+<tr><th>Time (MYT)</th><th>Customer</th><th>Status</th><th>Message</th></tr>
+{% for r in rows %}
+<tr>
+<td>{{ r.created_at | myt }}</td>
+<td>{{ r.name or "(deleted)" }}<br><span class="muted">{{ mask(r.phone) }}</span></td>
+<td><span class="badge {{ 'green' if r.status == 'sent' else 'red' }}">{{ r.status }}</span>
+{% if r.detail %}<br><span class="muted">{{ r.detail }}</span>{% endif %}<br><span class="muted">by {{ r.staff }}</span></td>
+<td>{{ r.body }}</td>
+</tr>
+{% endfor %}
+</table>
+{% endif %}
+</div>
+{% endblock %}

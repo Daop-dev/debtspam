@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}DebtSMS Staff{% endblock %}</title>
+<style>
+body { background: #10131b; color: #fff; font-family: Arial, sans-serif; margin: 0; padding: 16px; }
+.wrap { max-width: 760px; margin: 0 auto; }
+.card { background: #202735; padding: 18px; border-radius: 14px; margin-bottom: 16px; }
+h1 { font-size: 22px; margin: 0; } h2 { font-size: 17px; margin: 0 0 10px; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.top a, .top button { color: #a9bbff; }
+input:not([type=checkbox]), select, textarea { width: 100%; padding: 12px; margin: 6px 0 10px; box-sizing: border-box; border-radius: 8px; border: 1px solid #555; font-size: 15px; }
+textarea { min-height: 90px; font-family: inherit; }
+button { padding: 12px 14px; background: #7895ff; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; }
+button.small { padding: 6px 10px; font-size: 13px; background: #34445a; color: #fff; }
+button.danger { background: #a33; color: #fff; }
+button.link { background: none; padding: 0; font-weight: normal; }
+.wide { width: 100%; }
+.message { padding: 12px; background: #34445a; border-radius: 8px; margin-bottom: 12px; }
+.muted { color: #9aa6bd; font-size: 13px; line-height: 1.5; }
+.row { display: flex; gap: 10px; } .row > * { flex: 1; min-width: 0; }
+.cust { border-top: 1px solid #34445a; padding: 12px 0; }
+.cust-head { display: flex; gap: 10px; align-items: flex-start; }
+.cust-head input { margin-top: 4px; transform: scale(1.3); }
+.badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #34445a; margin-left: 6px; }
+.badge.red { background: #7a2b2b; } .badge.green { background: #2b6a3f; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.actions form { display: flex; gap: 6px; align-items: center; }
+.actions input { width: auto; margin: 0; padding: 6px; font-size: 13px; }
+label.check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; margin-bottom: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td, th { text-align: left; padding: 8px 6px; border-top: 1px solid #34445a; vertical-align: top; }
+.scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+{% for message in get_flashed_messages() %}<div class="message">{{ message }}</div>{% endfor %}
+{% block body %}{% endblock %}
+</div>
+</body>
+</html>

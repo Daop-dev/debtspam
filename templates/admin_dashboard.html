@@ -1,0 +1,95 @@
+{% extends "admin_base.html" %}
+{% block title %}DebtSMS customers{% endblock %}
+{% block body %}
+<div class="top">
+<h1>DebtSMS reminders</h1>
+<div>
+<a href="{{ url_for('admin.message_log') }}">Message log</a> ·
+<form method="POST" action="{{ url_for('admin.logout') }}" style="display:inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button class="link" style="color:#a9bbff">Log out</button>
+</form>
+</div>
+</div>
+
+<div class="card">
+<h2>Send reminder</h2>
+<form id="send-form" method="POST" action="{{ url_for('admin.send_reminders') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label>Message type</label>
+<select id="preset">
+{% for key, text in templates.items() %}<option value="{{ key }}">{{ key.replace('_', ' ') | capitalize }}</option>{% endfor %}
+</select>
+<label>Message</label>
+<textarea name="template" id="template" maxlength="300" required>{{ templates['upcoming'] }}</textarea>
+<p class="muted">Placeholders: {name} {amount} {due_date} {brand}. "{{ opt_out_text }}" is added automatically.<br>
+Limits: sent only {{ '%02d' % limits.start }}:00–{{ '%02d' % limits.end }}:00 Malaysia time, at most once per {{ limits.hours }}h and {{ limits.per30 }}× per 30 days per customer, {{ limits.batch }} customers per send. Customers without consent or who opted out are skipped.</p>
+<button class="wide" onclick="return confirm('Send this reminder to the selected customers?')">Send to selected customers</button>
+</form>
+</div>
+
+<div class="card">
+<h2>Customers ({{ customers | length }})</h2>
+{% if not customers %}<p class="muted">No customers yet. Add one below.</p>{% else %}
+<label class="check"><input type="checkbox" id="select-all"> Select all who can be messaged</label>
+{% endif %}
+{% for c in customers %}
+<div class="cust">
+<div class="cust-head">
+<input type="checkbox" name="customer_ids" value="{{ c.id }}" form="send-form" class="pick"
+{% if c.opted_out %}disabled{% endif %}>
+<div style="flex:1">
+<strong>{{ c.name }}</strong>
+{% if c.opted_out %}<span class="badge red">opted out</span>{% endif %}
+{% if c.due_date < today %}<span class="badge red">overdue</span>{% endif %}
+<div class="muted">{{ mask(c.phone) }} · RM{{ c.amount }} due {{ c.due_date }}<br>
+Last reminder: {{ c.last_sent | myt if c.last_sent else "never" }} · {{ c.sent_30d }} in last 30 days</div>
+</div>
+</div>
+<div class="actions">
+<form method="POST" action="{{ url_for('admin.update_customer', cid=c.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input name="amount" value="{{ c.amount }}" size="8" aria-label="Amount">
+<input name="due_date" type="date" value="{{ c.due_date }}" aria-label="Due date">
+<button class="small">Save</button>
+</form>
+<form method="POST" action="{{ url_for('admin.toggle_optout', cid=c.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button class="small">{{ "Opt back in" if c.opted_out else "Opt out" }}</button>
+</form>
+<form method="POST" action="{{ url_for('admin.delete_customer', cid=c.id) }}" onsubmit="return confirm('Delete {{ c.name }}?')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button class="small danger">Delete</button>
+</form>
+</div>
+</div>
+{% endfor %}
+</div>
+
+<div class="card">
+<h2>Add customer</h2>
+<form method="POST" action="{{ url_for('admin.add_customer') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label>Name</label><input name="name" maxlength="80" required>
+<label>Malaysian mobile number</label><input name="phone" type="tel" placeholder="0123456789" required>
+<div class="row">
+<div><label>Amount owed (RM)</label><input name="amount" inputmode="decimal" placeholder="150.00" required></div>
+<div><label>Due date</label><input name="due_date" type="date" required></div>
+</div>
+<label class="check"><input type="checkbox" name="consent" value="yes" required>
+The customer has agreed to receive payment reminders by SMS.</label>
+<button class="wide">Add customer</button>
+</form>
+</div>
+
+<script>
+const presets = {{ templates | tojson }};
+document.getElementById('preset').addEventListener('change', e => {
+  document.getElementById('template').value = presets[e.target.value];
+});
+const all = document.getElementById('select-all');
+if (all) all.addEventListener('change', () => {
+  document.querySelectorAll('.pick:not(:disabled)').forEach(cb => cb.checked = all.checked);
+});
+</script>
+{% endblock %}

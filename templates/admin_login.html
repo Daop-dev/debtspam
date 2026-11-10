@@ -1,0 +1,16 @@
+{% extends "admin_base.html" %}
+{% block title %}Staff login{% endblock %}
+{% block body %}
+<div class="card" style="max-width:420px;margin:40px auto">
+<h1>DebtSMS staff login</h1>
+{% if disabled %}
+<p class="muted">Login is disabled until the app is started with <code>ADMIN_PASSWORD</code> set.</p>
+{% endif %}
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label>Username</label><input name="username" autocomplete="username" required>
+<label>Password</label><input name="password" type="password" autocomplete="current-password" required>
+<button class="wide">Log in</button>
+</form>
+</div>
+{% endblock %}
